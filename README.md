@@ -6,6 +6,9 @@
 Epoch 23/30
 992/992 [==============================] - 106s 107ms/step - loss: 0.6344 - accuracy: 0.7685 - val_loss: 0.7400 - val_accuracy: 0.7357
 
+# CNN
+5 Mb
+Epoch 10/10 1323/1323 [==============================] - 115s 87ms/step - loss: 0.3506 - accuracy: 0.8737 - val_loss: 0.6444 - val_accuracy: 0.8110
 
 # MobileNet without augmentation (overfitting):
 33Mb
