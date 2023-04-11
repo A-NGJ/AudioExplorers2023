@@ -3,9 +3,8 @@
 
 # Transformer: 
 
-Epoch 10/30
-1323/1323 [==============================] - 250s 189ms/step - loss: 0.8595 - accuracy: 0.6856 - val_loss: 0.8849 - val_accuracy: 0.6756
-
+Epoch 10/10
+992/992 [==============================] - 45s 46ms/step - loss: 0.7767 - accuracy: 0.7107 - val_loss: 0.8019 - val_accuracy: 0.7031
 
 
 # MobileNet without augmentation (overfitting):
