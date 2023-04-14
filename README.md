@@ -8,7 +8,11 @@ Epoch 23/30
 
 # CNN
 5 Mb, Params:  422.021,
-Epoch 10/10 1323/1323 [==============================] - 115s 87ms/step - loss: 0.3506 - accuracy: 0.8737 - val_loss: 0.6444 - val_accuracy: 0.8110
+!Overfitting! Epoch 30/30
+1142/1142 [==============================] - 150s 131ms/step - loss: 0.1511 - accuracy: 0.9451 - val_loss: 0.5572 - val_accuracy: 0.8650
+248/248 [==============================] - 8s 32ms/step - loss: 0.5444 - accuracy: 0.8630
+Test accuracy: 0.8629947304725647
+
 
 # MobileNet without augmentation (overfitting):
 33Mb, Params:  3.360.709, 
