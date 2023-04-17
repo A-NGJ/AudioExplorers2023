@@ -105,3 +105,72 @@ def create_resnet(
 
     model = Model(inputs=inputs, outputs=x, name=name)
     return model
+
+
+def create_cnn_model_optimized(input_shape: tuple, num_classes: int, name: str = "CNN") -> Model:
+    """
+    Creates a CNN model 
+    on augmented data 89.8% accuracy
+    Parameters
+    ----------
+    input_shape : tuple
+        Shape of input data
+    num_classes : int
+        Number of classes to predict
+    """
+
+    inputs = Input(shape=input_shape)
+
+    x = layers.Conv2D(32, (3, 3), activation='relu') (inputs),
+    x = layers.BatchNormalization()(x),
+    x = layers.MaxPooling2D((2, 2))(x),
+
+    x = layers.Conv2D(64, (3, 3), activation='relu')(x),
+    x = layers.BatchNormalization()(x),
+    x = layers.MaxPooling2D((2, 2))(x),
+
+    x = layers.Conv2D(128, (3, 3), activation='relu')(x),
+    x = layers.BatchNormalization()(x),
+    x = layers.MaxPooling2D((2, 2))(x),
+
+    x = layers.Flatten()(x),
+    x = layers.Dense(128, activation='relu', kernel_regularizer = regularizers.l2( l=0.01))(x),
+    x = layers.Dropout(0.5)(x),
+    x = layers.Dense(5, activation='softmax')(x)
+
+    return Model(inputs=inputs, outputs=x, name=name)
+
+def create_1Dcnn_model(input_shape: tuple, num_classes: int, name: str = "CNN") -> Model:
+    """
+    Creates a 1D CNN model 
+    on augmented data 84% accuracy
+    
+    Parameters
+    ----------
+    input_shape : tuple
+        Shape of input data
+    num_classes : int
+        Number of classes to predict
+    """
+
+    inputs = Input(shape=input_shape)
+    x = layers.Reshape((32, 96), input_shape=inputs),
+
+    x = layers.Conv1D(32, 3, activation='relu')(x),
+    x = layers.BatchNormalization()(x),
+    x = layers.MaxPooling1D(2)(x),
+
+    x = layers.Conv1D(64, 3, activation='relu')(x), 
+    x = layers.BatchNormalization()(x),
+    x = layers.MaxPooling1D(2)(x),
+
+    x = layers.Conv1D(128, 3, activation='relu')(x),
+    x = layers.BatchNormalization()(x),
+    x = layers.MaxPooling1D(2)(x),
+
+    x = layers.Flatten()(x),
+    x = layers.Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(l=0.01))(x), 
+    x = layers.Dropout(0.5)(x),
+    x = layers.Dense(5, activation='softmax')(x)
+
+    return Model(inputs=inputs, outputs=x, name=name)
