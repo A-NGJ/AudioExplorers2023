@@ -40,6 +40,11 @@ class ModelFactory:
             return create_cnn_model(self.input_shape, self.num_classes)
         elif model_type == "MiniResNet":
             return create_resnet(self.input_shape, self.num_classes)
+        elif model_type == "CNN_1D":
+            # input = tf.keras.layers.Reshape((32, 96), input_shape=(32, 96, 1)),
+            return create_1Dcnn_model(self.input_shape, self.num_classes)
+        elif model_type ==  "CNN_optimized":
+            return create_cnn_model_optimized(self.input_shape, self.num_classes)
         else:
             raise ValueError(f"Unknown model type: {model_type}")
 
@@ -161,26 +166,24 @@ def create_cnn_model_optimized(input_shape: tuple, num_classes: int, name: str =
         Number of classes to predict
     """
 
-    inputs = Input(shape=input_shape)
+    model = tf.keras.Sequential([
+        tf.keras.layers.Conv2D(128, (3, 3), activation='relu', input_shape=input_shape),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((2, 2)),
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((2, 2)),
+        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling2D((2, 2)),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(128, activation='relu', kernel_regularizer =tf.keras.regularizers.l2( l=0.01)),
+        tf.keras.layers.Dropout(0.1),
+        tf.keras.layers.Dense(num_classes, activation='softmax')
+    ])
 
-    x = layers.Conv2D(32, (3, 3), activation='relu') (inputs),
-    x = layers.BatchNormalization()(x),
-    x = layers.MaxPooling2D((2, 2))(x),
 
-    x = layers.Conv2D(64, (3, 3), activation='relu')(x),
-    x = layers.BatchNormalization()(x),
-    x = layers.MaxPooling2D((2, 2))(x),
-
-    x = layers.Conv2D(128, (3, 3), activation='relu')(x),
-    x = layers.BatchNormalization()(x),
-    x = layers.MaxPooling2D((2, 2))(x),
-
-    x = layers.Flatten()(x),
-    x = layers.Dense(128, activation='relu', kernel_regularizer = regularizers.l2( l=0.01))(x),
-    x = layers.Dropout(0.5)(x),
-    x = layers.Dense(5, activation='softmax')(x)
-
-    return Model(inputs=inputs, outputs=x, name=name)
+    return model
 
 def create_1Dcnn_model(input_shape: tuple, num_classes: int, name: str = "CNN") -> Model:
     """
@@ -195,24 +198,64 @@ def create_1Dcnn_model(input_shape: tuple, num_classes: int, name: str = "CNN") 
         Number of classes to predict
     """
 
-    inputs = Input(shape=input_shape)
-    x = layers.Reshape((32, 96), input_shape=inputs),
+    model = tf.keras.Sequential([
 
-    x = layers.Conv1D(32, 3, activation='relu')(x),
-    x = layers.BatchNormalization()(x),
-    x = layers.MaxPooling1D(2)(x),
+        tf.keras.layers.Reshape((32, 96), input_shape=input_shape),
+        tf.keras.layers.Conv1D(32, 3, activation='relu'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling1D(2),
+        tf.keras.layers.Conv1D(64, 3, activation='relu'),
 
-    x = layers.Conv1D(64, 3, activation='relu')(x), 
-    x = layers.BatchNormalization()(x),
-    x = layers.MaxPooling1D(2)(x),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling1D(2),
+        tf.keras.layers.Conv1D(128, 3, activation='relu'),
 
-    x = layers.Conv1D(128, 3, activation='relu')(x),
-    x = layers.BatchNormalization()(x),
-    x = layers.MaxPooling1D(2)(x),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling1D(2),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(l=0.01)),
+        
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(num_classes, activation='softmax')
+    ])
+    return model
 
-    x = layers.Flatten()(x),
-    x = layers.Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(l=0.01))(x), 
-    x = layers.Dropout(0.5)(x),
-    x = layers.Dense(5, activation='softmax')(x)
 
-    return Model(inputs=inputs, outputs=x, name=name)
+# Define Transformer encoder layer
+class TransformerEncoder(tf.keras.layers.Layer):
+    def __init__(self, d_model, num_heads, dff, rate=0.1):
+        super().__init__()
+
+        self.mha = tf.keras.layers.MultiHeadAttention(num_heads=num_heads, key_dim=d_model)
+        self.dropout1 = tf.keras.layers.Dropout(rate)
+        self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+
+        self.ffn = tf.keras.Sequential([
+            tf.keras.layers.Dense(dff, activation='relu'),
+            tf.keras.layers.Dense(d_model)
+        ])
+        self.dropout2 = tf.keras.layers.Dropout(rate)
+        self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+
+
+    def call(self, x, training):
+        attn_output = self.mha(x, x, x)  # Multi-head attention
+        attn_output = self.dropout1(attn_output, training=training)
+        out1 = self.layernorm1(x + attn_output)  # Add and normalize
+
+        ffn_output = self.ffn(out1)  # Feed-forward neural network
+        ffn_output = self.dropout2(ffn_output, training=training)
+        out2 = self.layernorm2(out1 + ffn_output)  # Add and normalize
+
+        return out2
+def create_tranformer(input_shape: tuple, num_classes: int, name: str = "CNN") -> Model:
+    """
+    Creates a Transformer model 
+    
+    Parameters
+    ----------
+    input_shape : tuple
+        Shape of input data
+    num_classes : int
+        Number of classes to predict
+    """
