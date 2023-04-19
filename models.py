@@ -3,6 +3,7 @@ import tensorflow as tf
 keras = tf.keras
 from keras import layers, Input
 from keras.models import Model
+import TransformerEncoder
 
 
 class ModelFactory:
@@ -45,6 +46,8 @@ class ModelFactory:
             return create_1Dcnn_model(self.input_shape, self.num_classes)
         elif model_type ==  "CNN_optimized":
             return create_cnn_model_optimized(self.input_shape, self.num_classes)
+        elif model_type ==  "Transformer":
+            return create_transformer_model(self.input_shape, self.num_classes)
         else:
             raise ValueError(f"Unknown model type: {model_type}")
 
@@ -154,7 +157,7 @@ def create_resnet(
     return model
 
 
-def create_cnn_model_optimized(input_shape: tuple, num_classes: int, name: str = "CNN") -> Model:
+def create_cnn_model_optimized(input_shape: tuple, num_classes: int, name: str = "CNN_optimized") -> Model:
     """
     Creates a CNN model 
     on augmented data 89.8% accuracy
@@ -185,7 +188,7 @@ def create_cnn_model_optimized(input_shape: tuple, num_classes: int, name: str =
 
     return model
 
-def create_1Dcnn_model(input_shape: tuple, num_classes: int, name: str = "CNN") -> Model:
+def create_1Dcnn_model(input_shape: tuple, num_classes: int, name: str = "CNN_1D") -> Model:
     """
     Creates a 1D CNN model 
     on augmented data 84% accuracy
@@ -220,35 +223,7 @@ def create_1Dcnn_model(input_shape: tuple, num_classes: int, name: str = "CNN") 
     ])
     return model
 
-
-# Define Transformer encoder layer
-class TransformerEncoder(tf.keras.layers.Layer):
-    def __init__(self, d_model, num_heads, dff, rate=0.1):
-        super().__init__()
-
-        self.mha = tf.keras.layers.MultiHeadAttention(num_heads=num_heads, key_dim=d_model)
-        self.dropout1 = tf.keras.layers.Dropout(rate)
-        self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-
-        self.ffn = tf.keras.Sequential([
-            tf.keras.layers.Dense(dff, activation='relu'),
-            tf.keras.layers.Dense(d_model)
-        ])
-        self.dropout2 = tf.keras.layers.Dropout(rate)
-        self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-
-
-    def call(self, x, training):
-        attn_output = self.mha(x, x, x)  # Multi-head attention
-        attn_output = self.dropout1(attn_output, training=training)
-        out1 = self.layernorm1(x + attn_output)  # Add and normalize
-
-        ffn_output = self.ffn(out1)  # Feed-forward neural network
-        ffn_output = self.dropout2(ffn_output, training=training)
-        out2 = self.layernorm2(out1 + ffn_output)  # Add and normalize
-
-        return out2
-def create_tranformer(input_shape: tuple, num_classes: int, name: str = "CNN") -> Model:
+def create_transformer_model(input_shape: tuple, num_classes: int, name: str = "Transformer") -> Model:
     """
     Creates a Transformer model 
     
@@ -259,3 +234,32 @@ def create_tranformer(input_shape: tuple, num_classes: int, name: str = "CNN") -
     num_classes : int
         Number of classes to predict
     """
+
+    # Define model parameters
+    max_length = 32 # input_shape.shape[1]
+    input_dim = 96 # input_shape.shape[2]
+    output_dim = num_classes
+    d_model =  120
+    num_heads = 3 # 3
+    dff = 180 # 128
+    num_layers = 2
+    dropout_rate = 0.2
+
+    # Define input layer
+    inputs = Input(shape=(max_length, input_dim))
+
+    # Add input transformation layer
+    x = layers.Dense(d_model, activation='linear')(inputs)
+
+    # Add Transformer encoder layers
+    for i in range(num_layers):
+        transformer_encoder = TransformerEncoder.TransformerEncoder(d_model, num_heads, dff, dropout_rate)
+        x = transformer_encoder(x, training=True)
+
+    # Flatten and add output layer
+    x = layers.Flatten()(x)
+    outputs = layers.Dense(output_dim, activation='softmax')(x)
+
+    # Define and compile model
+    model = Model(inputs=inputs, outputs=outputs, name=name)
+    return model
