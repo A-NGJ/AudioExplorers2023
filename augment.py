@@ -4,6 +4,7 @@
 # 3. Copy it by !cp /content/drive/MyDrive/augment.py .
 # 4. import augment
 
+from collections import Counter
 import librosa
 import numpy as np
 
@@ -86,4 +87,60 @@ def pitch_shift(
         sr=sr,
         n_steps=n_steps * np.random.uniform(-1, 1),
         n_fft=n_fft,
+    )
+
+
+def augment_with_ratio(train_data: np.ndarray, train_labels: np.ndarray, ratio: float):
+    """
+    Augment the training data with a given ratio.
+
+    Parameters
+    ----------
+    train_data : np.ndarray
+        Training data.
+    train_labels : np.ndarray
+        Training labels.
+    ratio : float
+        Ratio of augmented data to original data.
+    """
+    n_samples = len(train_data)
+
+    # Augment class data
+    train_data_time_shift = np.array(
+        [time_shift(mel, shift_range=0.5) for mel in train_data]
+    )
+    train_data_time_stretch = np.array(
+        [time_stretch(mel, rate_range=(0.5, 1.5)) for mel in train_data]
+    )
+    train_data_add_noise = np.array(
+        [add_noise(mel, noise_factor=0.5) for mel in train_data]
+    )
+    train_data_pitch_shift = np.array([pitch_shift(mel) for mel in train_data])
+
+    # Concatenate the augmented data
+    train_data_aug = np.concatenate(
+        (
+            train_data_time_shift,
+            train_data_time_stretch,
+            train_data_add_noise,
+            train_data_pitch_shift,
+        )
+    )
+
+    # Concatenate the augmented labels
+    train_labels_aug = np.concatenate((train_labels,) * 4)
+
+    # Pick randomly n_samples * ratio samples from the augmented data
+    n_augmented_samples = int(n_samples * (ratio - 1))
+    if n_augmented_samples > len(train_data_aug):
+        # Select all indieces
+        indices = np.arange(len(train_data_aug))
+    else:
+        indices = np.random.choice(
+            len(train_data_aug), n_augmented_samples, replace=False
+        )
+
+    return (
+        np.concatenate((train_data, train_data_aug[indices])),
+        np.concatenate((train_labels, train_labels_aug[indices])),
     )

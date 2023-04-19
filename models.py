@@ -1,5 +1,47 @@
-from tensorflow.keras import layers, Input
-from tensorflow.keras.models import Model
+import tensorflow as tf
+
+keras = tf.keras
+from keras import layers, Input
+from keras.models import Model
+
+
+class ModelFactory:
+    """
+    Factory class for creating models.
+    """
+
+    def __init__(self, input_shape: tuple, num_classes: int):
+        """
+        Parameters
+        ----------
+        input_shape : tuple
+            Shape of input data
+        num_classes : int
+            Number of classes to predict
+        """
+        self.input_shape = input_shape
+        self.num_classes = num_classes
+
+    def create_model(self, model_type: str) -> Model:
+        """
+        Create a model of type `model_type`.
+
+        Parameters
+        ----------
+        model_type : str
+            Type of model to create
+
+        Returns
+        -------
+        Model
+            The created model
+        """
+        if model_type == "CNN":
+            return create_cnn_model(self.input_shape, self.num_classes)
+        elif model_type == "MiniResNet":
+            return create_resnet(self.input_shape, self.num_classes)
+        else:
+            raise ValueError(f"Unknown model type: {model_type}")
 
 
 def create_cnn_model(input_shape: tuple, num_classes: int, name: str = "CNN") -> Model:
