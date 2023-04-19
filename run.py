@@ -148,8 +148,10 @@ def main(args):
 
     model_factory = ModelFactory((*train_data.shape[1:], 1), train_labels.shape[1])
     model = model_factory.create_model(args.model_type)
-    lr_schedule = ExponentialDecay(initial_learning_rate=args.lr, decay_steps=10000, decay_rate=0.9)
+    if args.lr_decay:
+        lr_schedule = ExponentialDecay(initial_learning_rate=args.lr, decay_steps=10000, decay_rate=0.9)
     # optimizer = Adam(learning_rate=args.lr)
+    else: lr_schedule = args.lr
     optimizer = Adam(learning_rate=lr_schedule)
     model.compile(
         optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"]
@@ -235,11 +237,14 @@ if __name__ == "__main__":
         type=str,
         help="Type of model to train",
         required=True,
-        choices=["CNN", "MiniResNet", "CNN_1D", "CNN_optimized"],
+        choices=["CNN", "MiniResNet", "CNN_1D", "CNN_optimized", "Transformer"],
     )
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     parser.add_argument("--epochs", type=int, default=30, help="Number of epochs")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
+    parser.add_argument("--lr-decay", action="store_true", 
+            help="choose to have exponential decay learning rate",
+            )
     parser.add_argument(
         "--patience", type=int, default=5, help="Patience for early stopping"
     )
@@ -276,14 +281,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    default_name = f"{args.model_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     if not args.save_name:
         args.save_name = (
-            f"{args.model_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.h5"
+            default_name + ".h5"
         )
 
     if not args.results_name:
         args.results_name = (
-            f"{args.model_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            default_name + ".json"
         )
 
     logging.info(f"Model name: {args.save_name}")
