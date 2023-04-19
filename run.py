@@ -19,6 +19,8 @@ from keras.metrics import (
 from keras.optimizers import Adam
 import augment
 from models import ModelFactory
+import os
+from tensorflow.keras.optimizers.schedules import ExponentialDecay
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s:%(message)s")
 
@@ -75,8 +77,11 @@ def stratify_train_test_split(
 
 def main(args):
     # Create a directory to save the model
-    save_dir = Path(args.save_dir)
-    save_dir.mkdir(parents=True, exist_ok=True)
+    save_model_dir = Path(args.save_dir)
+    save_model_dir.mkdir(parents=True, exist_ok=True)
+
+    save_results_dir = Path(args.results_dir)
+    save_results_dir.mkdir(parents=True, exist_ok=True)
 
     data = loadmat(args.train_data)["data"]
     labels = loadmat(args.train_labels)["data"][0]
@@ -143,7 +148,9 @@ def main(args):
 
     model_factory = ModelFactory((*train_data.shape[1:], 1), train_labels.shape[1])
     model = model_factory.create_model(args.model_type)
-    optimizer = Adam(learning_rate=args.lr)
+    lr_schedule = ExponentialDecay(initial_learning_rate=args.lr, decay_steps=10000, decay_rate=0.9)
+    # optimizer = Adam(learning_rate=args.lr)
+    optimizer = Adam(learning_rate=lr_schedule)
     model.compile(
         optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"]
     )
@@ -161,7 +168,7 @@ def main(args):
     )
 
     # Save the model
-    model.save(save_dir / args.save_name)
+    model.save(save_model_dir / args.save_name)
 
     results = {}
 
@@ -180,7 +187,8 @@ def main(args):
 
     # Read results file if it exists
     try:
-        with open(args.results_path, "r") as f:
+        results_file_path = os.path.join(args.results_dir, args.results_name)
+        with open(save_results_dir / args.results_name , "r") as f:
             results_json = json.load(f)
     except FileNotFoundError:
         results_json = []
@@ -192,7 +200,7 @@ def main(args):
             "results": results,
         }
     )
-    with open(args.results_path, "w") as f:
+    with open(save_results_dir / args.results_name , "w") as f:
         json.dump(results_json, f, indent=4)
 
 
@@ -227,7 +235,7 @@ if __name__ == "__main__":
         type=str,
         help="Type of model to train",
         required=True,
-        choices=["CNN", "MiniResNet"],
+        choices=["CNN", "MiniResNet", "CNN_1D", "CNN_optimized"],
     )
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     parser.add_argument("--epochs", type=int, default=30, help="Number of epochs")
@@ -237,7 +245,16 @@ if __name__ == "__main__":
     )
     parser.add_argument("--augment", action="store_true", help="Augment data")
     parser.add_argument(
-        "--results-path", type=str, help="Path to save results", default="results.json"
+        "--results-dir", 
+        type=str,
+          help="Path to save results", 
+        default="saved_results",
+    )
+    parser.add_argument(
+        "--results-name", 
+        type=str, 
+        help="Name to save results <model_type>_<timestamp>.json", 
+    
     )
     parser.add_argument(
         "--save-name",
@@ -264,5 +281,14 @@ if __name__ == "__main__":
             f"{args.model_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.h5"
         )
 
+    if not args.results_name:
+        args.results_name = (
+            f"{args.model_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
+
     logging.info(f"Model name: {args.save_name}")
     main(args)
+
+
+# Sample command:
+# python run.py --train-data training.mat --train-labels training_labels.mat --model-type MiniResNet  --patience 10  --epochs 2
