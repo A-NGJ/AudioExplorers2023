@@ -102,7 +102,6 @@ def main(args):
         42,
     )
 
-    x = 1
     if args.augment:
         # Decode one-hot encoded labels
         train_labels_decoded = np.argmax(train_labels, axis=1)
