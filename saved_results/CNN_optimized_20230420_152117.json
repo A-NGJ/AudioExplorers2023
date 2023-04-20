@@ -1,0 +1,29 @@
+[
+    {
+        "args": {
+            "train_data": "training.mat",
+            "train_size": 0.6,
+            "val_samples": 400,
+            "test_samples": 400,
+            "train_labels": "training_labels.mat",
+            "model_type": "CNN_optimized",
+            "batch_size": 32,
+            "epochs": 100,
+            "lr": 0.001,
+            "lr_decay": false,
+            "patience": 10,
+            "augment": true,
+            "results_dir": "saved_results",
+            "results_name": "CNN_optimized_20230420_152117.json",
+            "save_name": "CNN_optimized_20230420_152117.h5",
+            "save_dir": "saved_models",
+            "comment": ""
+        },
+        "results": {
+            "loss": 0.5315620303153992,
+            "accuracy": 0.8784999847412109,
+            "precision": 0.8993743658065796,
+            "recall": 0.862500011920929
+        }
+    }
+]
