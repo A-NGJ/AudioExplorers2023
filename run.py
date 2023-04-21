@@ -237,7 +237,7 @@ if __name__ == "__main__":
         type=str,
         help="Type of model to train",
         required=True,
-        choices=["CNN", "MiniResNet", "CNN_1D", "CNN_optimized", "Transformer"],
+        choices=["CNN", "MiniResNet", "CNN_1D", "CNN_optimized", "Transformer", "CNN_1D_MultiHeaded"], #, "MobileNet"
     )
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     parser.add_argument("--epochs", type=int, default=30, help="Number of epochs")
