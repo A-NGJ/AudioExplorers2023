@@ -4,7 +4,6 @@
 # 3. Copy it by !cp /content/drive/MyDrive/augment.py .
 # 4. import augment
 
-from collections import Counter
 import librosa
 import numpy as np
 

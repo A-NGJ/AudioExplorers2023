@@ -132,3 +132,6 @@ dmypy.json
 # Project specific
 saved_models/
 results.json
+
+# Mac OS
+.DS_Store

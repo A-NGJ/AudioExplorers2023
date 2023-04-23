@@ -1,3 +1,5 @@
+import os
+
 from argparse import ArgumentParser
 from collections import Counter
 from datetime import datetime
@@ -6,7 +8,10 @@ import logging
 from pathlib import Path
 
 import numpy as np
-from scipy.io import loadmat
+from scipy.io import (
+    loadmat,
+    savemat,
+)
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 
@@ -17,10 +22,10 @@ from keras.metrics import (
     Recall,
 )
 from keras.optimizers import Adam
+from tensorflow.keras.optimizers.schedules import ExponentialDecay
+
 import augment
 from models import ModelFactory
-import os
-from tensorflow.keras.optimizers.schedules import ExponentialDecay
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s:%(message)s")
 
@@ -108,33 +113,50 @@ def main(args):
     )
 
     if args.augment:
-        # Decode one-hot encoded labels
-        train_labels_decoded = np.argmax(train_labels, axis=1)
+        if (Path(args.train_data).parent / "augmented_data.mat").exists():
+            logging.info("Augmented data already exists, loading...")
+            train_data = loadmat(args.train_data)["data"]
+            train_labels = loadmat(args.train_labels)["labels"]
+        else:
+            # Decode one-hot encoded labels
+            train_labels_decoded = np.argmax(train_labels, axis=1)
 
-        most_common_class_n = class_counter.most_common(1)[0][1]
+            most_common_class_n = class_counter.most_common(1)[0][1]
 
-        # calculate the ratio of each class to the most common class and store in a dictionary
-        class_ratios = {k: most_common_class_n / v for k, v in class_counter.items()}
+            # calculate the ratio of each class to the most common class and store in a dictionary
+            class_ratios = {
+                k: most_common_class_n / v for k, v in class_counter.items()
+            }
 
-        # Augment each class by the ratio of the most common class
-        for class_, ratio in class_ratios.items():
-            logging.info(f"Augmenting class {class_} by a factor of {ratio}")
-            class_indices = np.where(train_labels_decoded == class_)[0]
-            class_data = train_data[class_indices]
-            class_labels = train_labels[class_indices]
+            # Augment each class by the ratio of the most common class
+            for class_, ratio in class_ratios.items():
+                logging.info(f"Augmenting class {class_} by a factor of {ratio}")
+                class_indices = np.where(train_labels_decoded == class_)[0]
+                class_data = train_data[class_indices]
+                class_labels = train_labels[class_indices]
 
-            # Augment the data
-            class_data, class_labels = augment.augment_with_ratio(
-                class_data,
-                class_labels,
-                ratio,
+                # Augment the data
+                class_data, class_labels = augment.augment_with_ratio(
+                    class_data,
+                    class_labels,
+                    ratio,
+                )
+
+                # Concatenate the augmented data with the training data
+                train_data = np.concatenate((train_data, class_data))
+
+                # Concatenate the augmented labels with the class labels
+                train_labels = np.concatenate((train_labels, class_labels))
+
+            # Save the augmented data to .mat
+            save_augmented_data = {
+                "data": train_data,
+                "labels": train_labels,
+            }
+            logging.info(f"Saving augmented data to {Path(args.train_data).parent}")
+            savemat(
+                Path(args.train_data).parent / "data_augment.mat", save_augmented_data
             )
-
-            # Concatenate the augmented data with the training data
-            train_data = np.concatenate((train_data, class_data))
-
-            # Concatenate the augmented labels with the class labels
-            train_labels = np.concatenate((train_labels, class_labels))
 
     if train_labels.shape[0] != train_data.shape[0]:
         raise ValueError(
@@ -149,9 +171,12 @@ def main(args):
     model_factory = ModelFactory((*train_data.shape[1:], 1), train_labels.shape[1])
     model = model_factory.create_model(args.model_type)
     if args.lr_decay:
-        lr_schedule = ExponentialDecay(initial_learning_rate=args.lr, decay_steps=10000, decay_rate=0.9)
+        lr_schedule = ExponentialDecay(
+            initial_learning_rate=args.lr, decay_steps=10000, decay_rate=0.9
+        )
     # optimizer = Adam(learning_rate=args.lr)
-    else: lr_schedule = args.lr
+    else:
+        lr_schedule = args.lr
     optimizer = Adam(learning_rate=lr_schedule)
     model.compile(
         optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"]
@@ -190,7 +215,7 @@ def main(args):
     # Read results file if it exists
     try:
         results_file_path = os.path.join(args.results_dir, args.results_name)
-        with open(save_results_dir / args.results_name , "r") as f:
+        with open(save_results_dir / args.results_name, "r") as f:
             results_json = json.load(f)
     except FileNotFoundError:
         results_json = []
@@ -202,7 +227,7 @@ def main(args):
             "results": results,
         }
     )
-    with open(save_results_dir / args.results_name , "w") as f:
+    with open(save_results_dir / args.results_name, "w") as f:
         json.dump(results_json, f, indent=4)
 
 
@@ -242,24 +267,25 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     parser.add_argument("--epochs", type=int, default=30, help="Number of epochs")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
-    parser.add_argument("--lr-decay", action="store_true", 
-            help="choose to have exponential decay learning rate",
-            )
+    parser.add_argument(
+        "--lr-decay",
+        action="store_true",
+        help="choose to have exponential decay learning rate",
+    )
     parser.add_argument(
         "--patience", type=int, default=5, help="Patience for early stopping"
     )
     parser.add_argument("--augment", action="store_true", help="Augment data")
     parser.add_argument(
-        "--results-dir", 
+        "--results-dir",
         type=str,
-          help="Path to save results", 
+        help="Path to save results",
         default="saved_results",
     )
     parser.add_argument(
-        "--results-name", 
-        type=str, 
-        help="Name to save results <model_type>_<timestamp>.json", 
-    
+        "--results-name",
+        type=str,
+        help="Name to save results <model_type>_<timestamp>.json",
     )
     parser.add_argument(
         "--save-name",
@@ -283,14 +309,10 @@ if __name__ == "__main__":
 
     default_name = f"{args.model_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     if not args.save_name:
-        args.save_name = (
-            default_name + ".h5"
-        )
+        args.save_name = default_name + ".h5"
 
     if not args.results_name:
-        args.results_name = (
-            default_name + ".json"
-        )
+        args.results_name = default_name + ".json"
 
     logging.info(f"Model name: {args.save_name}")
     main(args)
