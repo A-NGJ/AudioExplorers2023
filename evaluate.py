@@ -28,7 +28,7 @@ def main(args: Namespace):
     predictions = np.argmax(predictions, axis=1)
 
     # save predictions to .txt file
-    # np.savetxt("predictions.txt", predictions, fmt="%d")
+    np.savetxt("predictions.txt", predictions, fmt="%d")
 
 
 if __name__ == "__main__":

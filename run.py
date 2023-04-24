@@ -113,10 +113,11 @@ def main(args):
     )
 
     if args.augment:
-        if (Path(args.train_data).parent / "augmented_data.mat").exists():
+        augment_path = Path(args.train_data).parent / "data_augment.mat"
+        if augment_path.exists():
             logging.info("Augmented data already exists, loading...")
-            train_data = loadmat(args.train_data)["data"]
-            train_labels = loadmat(args.train_labels)["labels"]
+            train_data = loadmat(augment_path)["data"]
+            train_labels = loadmat(augment_path)["labels"]
         else:
             # Decode one-hot encoded labels
             train_labels_decoded = np.argmax(train_labels, axis=1)
@@ -262,7 +263,14 @@ if __name__ == "__main__":
         type=str,
         help="Type of model to train",
         required=True,
-        choices=["CNN", "MiniResNet", "CNN_1D", "CNN_optimized", "Transformer", "CNN_1D_MultiHeaded"], #, "MobileNet"
+        choices=[
+            "CNN",
+            "MiniResNet",
+            "CNN_1D",
+            "CNN_optimized",
+            "Transformer",
+            "CNN_1D_MultiHeaded",
+        ],  # , "MobileNet"
     )
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     parser.add_argument("--epochs", type=int, default=30, help="Number of epochs")
